@@ -9,134 +9,128 @@ import re
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# --- ページ設定 ---
+# --- ページ設定（実用的なビジネスツール風） ---
 st.set_page_config(
-    page_title="FactCheck Pro | Advanced Analytics",
-    page_icon="🧪",
+    page_title="FactChecker Platform v1.0",
+    page_icon="⚖️",
     layout="wide"
 )
 
-# --- カスタムCSS ---
+# --- カスタムCSS（清潔感のあるビジネスデザイン） ---
 st.markdown("""
     <style>
-    .stApp { background-color: #0e1117; color: #ffffff; }
-    .report-card {
-        background-color: #161b22;
+    .stApp { background-color: #f0f2f6; color: #1e1e1e; }
+    .stButton>button { border-radius: 20px; }
+    .action-box {
+        background-color: #ffffff;
         padding: 20px;
-        border-radius: 12px;
-        border: 1px solid #30363d;
-        margin-bottom: 20px;
+        border-radius: 10px;
+        border-left: 5px solid #1f77b4;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
-    .metric-val { font-size: 24px; font-weight: bold; color: #58a6ff; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- ロジック ---
+# --- ロジック（N-gram解析） ---
 def tokenize(text):
     text = re.sub(r'[^\w\s]', '', str(text))
     return " ".join([text[i:i+2] for i in range(len(text)-1)])
 
-# --- データ ---
-CSV_DATA = """title,source
-磐越道 高校生など21人死傷事故 バス運行会社を捜索,NHKニュース
-イランと米 双方相手の攻撃主張 トランプ大統領「停戦有効」,NHKニュース
-トランプ政権の10％関税「違法」と判断 米国際貿易裁判所,NHKニュース
-関西電力 美浜原発3号機 蒸気漏れで運転停止 外部への影響なし,NHKニュース
-株価 初の6万2000円台 イラン情勢の緊張緩和期待,NHKニュース
-政府 独自の対北朝鮮制裁を2年延長 貨客船の入港禁止継続,読売新聞
-リニア中央新幹線 静岡工区の着工 専門家会議で議論続く,産経新聞
-都内の桜 満開を発表 平年より4日早く,共同通信
-大阪万博 海外パビリオンの建設遅れ 対策を強化,日本経済新聞
-AIによる画像生成 著作権保護の指針案を公表 文化庁,朝日新聞
+# --- データベース（実用性を意識した報道データ） ---
+CSV_DATA = """title,source,url
+【速報】都内で季節外れの夏日を記録 熱中症に警戒,NHKニュース,https://www3.nhk.or.jp/news/
+新型iPhoneの発表は来月15日に決定か 米大手メディア報じる,IT Media,https://www.itmedia.co.jp/
+マイナカードの健康保険証利用 2024年秋に一本化方針,朝日新聞,https://www.asahi.com/
+生成AIの利用ガイドラインを文科省が公表 学校現場での活用,産経新聞,https://www.sankei.com/
+プロ野球 日本シリーズが開幕 満員の中で熱戦,共同通信,https://www.kyodo.co.jp/
 """
 df = pd.read_csv(io.StringIO(CSV_DATA))
 
 # --- メイン UI ---
-st.title("🧪 FactCheck AI: 学術的解析モード")
-st.markdown("演習・発表向け：Matplotlib/Seaborn を用いた詳細な統計分析表示")
+st.title("⚖️ FactChecker Platform v1.0")
+st.write("報道機関のアーカイブとAI照合を行い、情報の真偽性をリアルタイムにスクリーニングします。")
 
-with st.expander("📝 分析対象の入力", expanded=True):
-    input_text = st.text_area("ニュース記事をペースト", height=150, placeholder="ここに文章を入力してください...")
-    analyze = st.button("🔬 詳細統計分析を実行")
+# 1. ユーザー入力セクション
+st.divider()
+st.markdown("### 📥 1. 検証対象の入力")
 
-if analyze and input_text:
-    with st.spinner('計算エンジン駆動中...'):
-        # 計算
-        titles = df["title"].tolist()
-        words = [tokenize(t) for t in titles]
-        input_words = tokenize(input_text)
-        
-        vectorizer = TfidfVectorizer()
-        tfidf_matrix = vectorizer.fit_transform(words + [input_words])
-        scores = cosine_similarity(tfidf_matrix[-1], tfidf_matrix[:-1])[0]
-        
-        # 結果抽出
-        df_res = df.copy()
-        df_res["score"] = scores
-        df_res = df_res.sort_values("score", ascending=False)
-        top_score = df_res.iloc[0]["score"]
-        
-        # --- 表示セクション ---
-        st.divider()
-        
-        col_main, col_stats = st.columns([1, 1])
-        
-        with col_main:
-            st.markdown('<div class="report-card">', unsafe_allow_html=True)
-            st.subheader("🏁 総合判定レポート")
-            if top_score > 0.15:
-                st.success("### 【判定：信頼性高】")
-                st.balloons()
-            else:
-                st.error("### 【判定：情報不足・未確認】")
+# サンプルボタン（実用的なUX）
+col_s1, col_s2, col_s3 = st.columns(3)
+with col_s1:
+    if st.button("📝 サンプル：本物のニュース"):
+        st.session_state.text = "都内で夏日が記録され、熱中症への警戒が呼びかけられています。"
+with col_s2:
+    if st.button("❌ サンプル：未確認情報"):
+        st.session_state.text = "都内の公園でライオンが逃げ出したという噂が広がっています。"
+
+input_text = st.text_area("ニュース本文、またはSNSの投稿内容を入力してください", 
+                          value=st.session_state.get('text', ''), 
+                          height=150)
+
+# 2. 分析実行
+if st.button("🔬 信頼性スコアリングを開始"):
+    if input_text:
+        with st.spinner('検証データベースと照合中...'):
+            # --- 解析処理 ---
+            titles = df["title"].tolist()
+            words = [tokenize(t) for t in titles]
+            input_words = tokenize(input_text)
             
-            st.write(f"**最高一致度:** `{top_score:.4f}`")
-            st.write(f"**参照元:** {df_res.iloc[0]['source']}")
-            st.info(f"**最も近い報道:** {df_res.iloc[0]['title']}")
-            st.markdown('</div>', unsafe_allow_html=True)
-
-            # Plotly メーター (動的要素)
-            fig_m = go.Figure(go.Indicator(
-                mode = "gauge+number",
-                value = top_score * 100,
-                title = {'text': "一致率 (%)"},
-                gauge = {'axis': {'range': [0, 100]}, 'bar': {'color': "#58a6ff"}}
-            ))
-            fig_m.update_layout(height=250, paper_bgcolor='rgba(0,0,0,0)', font={'color': "white"})
-            st.plotly_chart(fig_m, use_container_width=True)
-
-        with col_stats:
-            st.markdown('<div class="report-card">', unsafe_allow_html=True)
-            st.subheader("📊 統計的分布 (Seaborn)")
+            vectorizer = TfidfVectorizer()
+            tfidf_matrix = vectorizer.fit_transform(words + [input_words])
+            scores = cosine_similarity(tfidf_matrix[-1], tfidf_matrix[:-1])[0]
             
-            # Seaborn を使ったヒストグラムと密度の可視化
-            fig_sns, ax = plt.subplots(figsize=(5, 4))
-            fig_sns.patch.set_facecolor('#161b22')
-            ax.set_facecolor('#161b22')
+            best_idx = scores.argmax()
+            top_score = scores[best_idx]
+            match_data = df.iloc[best_idx]
             
-            sns.histplot(scores, kde=True, color='#58a6ff', ax=ax)
-            ax.set_title("Similarity Score Distribution", color='white')
-            ax.tick_params(colors='white')
-            for spine in ax.spines.values():
-                spine.set_color('#30363d')
+            # --- 結果表示レイアウト ---
+            st.divider()
+            st.markdown("### 📊 2. 検証レポート")
             
-            st.pyplot(fig_sns)
-            st.write("データベース内の全記事との類似度分布を表示。今回の入力がどの程度特異か、または普遍的かを示します。")
-            st.markdown('</div>', unsafe_allow_html=True)
+            res_col1, res_col2 = st.columns([1, 1])
+            
+            with res_col1:
+                st.markdown("#### 🏁 判定結果")
+                if top_score > 0.15:
+                    st.success(f"### 【判定：信頼性・高】\nこの情報は公的報道機関の内容と一致しています。")
+                else:
+                    st.error(f"### 【判定：信頼性・未確認】\n公的報道機関のデータベースに一致する情報が見当たりません。")
+                
+                # メーター表示
+                fig_g = go.Figure(go.Indicator(
+                    mode = "gauge+number",
+                    value = top_score * 100,
+                    title = {'text': "報道一致率 (%)"},
+                    gauge = {'axis': {'range': [0, 100]}, 'bar': {'color': "#1f77b4"}}
+                ))
+                fig_g.update_layout(height=250, margin=dict(t=30, b=0))
+                st.plotly_chart(fig_g, use_container_width=True)
 
-        # 下段：ヒートマップ (Seaborn)
-        st.markdown('<div class="report-card">', unsafe_allow_html=True)
-        st.subheader("🌡️ 類似度相関ヒートマップ (Top 5)")
-        
-        top_5 = df_res.head(5)
-        # 簡易的なヒートマップ用行列
-        hm_data = top_5[["score"]].T
-        hm_data.columns = [t[:10]+"..." for t in top_5["title"]]
-        
-        fig_hm, ax_hm = plt.subplots(figsize=(10, 2))
-        fig_hm.patch.set_facecolor('#161b22')
-        sns.heatmap(hm_data, annot=True, cmap="YlGnBu", ax=ax_hm, cbar=False)
-        ax_hm.set_title("Comparison Heatmap", color='white')
-        ax_hm.tick_params(colors='white')
-        st.pyplot(fig_hm)
-        st.markdown('</div>', unsafe_allow_html=True)
+            with res_col2:
+                st.markdown("#### 🔍 照合の詳細")
+                st.write(f"**最も類似した記事:**\n{match_data['title']}")
+                st.write(f"**情報源:** {match_data['source']}")
+                st.markdown(f"[🔗 出典元リンクを開く]({match_data['url']})")
+                
+                # 統計グラフ (Seaborn)
+                fig_sns, ax = plt.subplots(figsize=(6, 4))
+                sns.barplot(x=scores, y=[t[:10]+"..." for t in titles], ax=ax, palette="Blues_d")
+                ax.set_title("Similarity comparison across database")
+                st.pyplot(fig_sns)
+
+            # 3. ユーザーへの行動指針（実用機能）
+            st.divider()
+            st.markdown("### 🛡️ 3. 推奨されるアクション")
+            
+            with st.container():
+                st.markdown('<div class="action-box">', unsafe_allow_html=True)
+                if top_score > 0.15:
+                    st.write("✅ **このまま引用・拡散して問題ありません。**")
+                    st.write("公的ソースが存在します。情報の詳細については、上記の出典元リンクを参照してください。")
+                else:
+                    st.write("🛑 **情報の拡散を一時停止してください。**")
+                    st.write("SNS上でのみ拡散されている情報の可能性があります。信頼できる大手メディア（新聞、通信社など）から続報が出るまで待機してください。")
+                st.markdown('</div>', unsafe_allow_html=True)
+    else:
+        st.warning("検証する文章を入力してください。")
