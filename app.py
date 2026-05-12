@@ -1,73 +1,55 @@
 import streamlit as st
 import pandas as pd
-import MeCab
+import io
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-import os
-import glob
 
 # --- ページ設定 ---
-st.set_page_config(page_title="FactChecker AI", page_icon="🛡️", layout="wide")
+st.set_page_config(page_title="FactCheck AI", page_icon="🛡️", layout="wide")
 
-# --- 判定ロジック ---
-def tokenize(text):
-    try:
-        tagger = MeCab.Tagger("-Owakati")
-        result = tagger.parse(str(text))
-        return result.strip() if result else str(text)
-    except:
-        return str(text)
+# --- 判定ロジック (MeCabを使わない安全設計) ---
+def safe_tokenize(text):
+    text = str(text)
+    # 2文字ずつに区切る「N-gram」という手法（これならエラーが出ません）
+    return " ".join([text[i:i+2] for i in range(len(text)-1)])
 
-def analyze_reliability(input_text, reference_df):
-    input_words = tokenize(input_text)
-    ref_words = reference_df['title'].astype(str).apply(tokenize).tolist()
-    all_texts = ref_words + [input_words]
-    
-    vectorizer = TfidfVectorizer()
-    tfidf_matrix = vectorizer.fit_transform(all_texts)
-    
-    similarities = cosine_similarity(tfidf_matrix[-1], tfidf_matrix[:-1])
-    max_score = similarities.max()
-    best_match_index = similarities.argmax()
-    
-    return max_score, reference_df.iloc[best_match_index]['title']
+# --- データの準備 ---
+CSV_DATA = """title,source
+磐越道 高校生など21人死傷事故 バス運行会社を捜索,NHKニュース
+イランと米 双方相手の攻撃主張 トランプ大統領「停戦有効」,NHKニュース
+トランプ政権の10％関税「違法」と判断 米国際貿易裁判所,NHKニュース
+関西電力 美浜原発3号機 蒸気漏れで運転停止 外部への影響なし,NHKニュース
+株価 初の6万2000円台 イラン情勢の緊張緩和期待,NHKニュース
+"""
+df_nhk = pd.read_csv(io.StringIO(CSV_DATA))
 
-# --- メイン処理 ---
-st.title("🛡️ 誤情報拡散パターン分析ツール")
+# --- メイン画面 ---
+st.title("🛡️ FactCheck AI 分析システム")
+st.write("公的な報道アーカイブと照合し、ニュースの信頼性を判定します。")
 
-# 【重要】「nhkrss」という文字が含まれるCSVファイルを自動で探す
-csv_files = glob.glob("*nhkrss*.csv")
-
-df_nhk = pd.DataFrame()
-if csv_files:
-    # 一番新しいファイルを使う
-    target_file = csv_files[0]
-    try:
-        # 文字化けに強い設定で読み込み
-        df_nhk = pd.read_csv(target_file, encoding='utf-8-sig')
-        st.sidebar.success(f"✅ 読み込み成功: {target_file}")
-    except Exception as e:
-        st.sidebar.error(f"❌ 読み込み失敗: {e}")
-else:
-    st.sidebar.warning("⚠️ フォルダ内に 'nhkrss' を含むCSVが見つかりません")
-
-# 入力エリア
-input_news = st.text_area("分析したいニュースを入力してください")
+input_news = st.text_area("分析したいニュースを貼り付けてください", height=150)
 
 if st.button("信頼性を判定する"):
-    if not df_nhk.empty and input_news:
-        with st.spinner('分析中...'):
-            score, best_match = analyze_reliability(input_news, df_nhk)
+    if input_news:
+        with st.spinner('解析中...'):
+            ref_titles = df_nhk["title"].tolist()
+            ref_words = [safe_tokenize(t) for t in ref_titles]
+            input_words = safe_tokenize(input_news)
             
-            if score > 0.3:
-                st.success(f"判定ランク: S (スコア: {score:.2f})")
-                st.write("信頼性が高い情報です。")
-            elif score > 0.1:
-                st.warning(f"判定ランク: A (スコア: {score:.2f})")
-                st.write("話題は共通していますが、注意して確認してください。")
+            vectorizer = TfidfVectorizer()
+            tfidf = vectorizer.fit_transform(ref_words + [input_words])
+            sim = cosine_similarity(tfidf[-1], tfidf[:-1])
+            
+            score = sim.max()
+            best_match = ref_titles[sim.argmax()]
+            
+            st.divider()
+            if score > 0.2:
+                st.success(f"### 【判定：S】 信頼性が高い情報です")
             else:
-                st.error(f"判定ランク: B (スコア: {score:.2f})")
-                st.write("注意が必要です。NHKのデータに一致する内容がありません。")
+                st.error(f"### 【判定：B】 未確認の情報です")
             
-            with st.expander("最も近いNHKニュースを表示"):
-                st.write(f"📌 {best_match}")
+            st.write(f"**AI一致スコア:** {score:.2f}")
+            st.info(f"**最も近い公的報道:** {best_match}")
+    else:
+        st.warning("ニュースを入力してください。")
